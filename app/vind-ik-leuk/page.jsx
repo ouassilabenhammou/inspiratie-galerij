@@ -1,4 +1,3 @@
-// app/vind-ik-leuk/page.jsx
 "use client";
 import { useEffect, useState } from "react";
 
@@ -6,13 +5,33 @@ export default function VindIkLeukPage() {
   const [photos, setPhotos] = useState([]);
   const [likedPhotoIds, setLikedPhotoIds] = useState([]);
 
-  // Laad opgeslagen likes bij eerste render
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("likedPhotos") || "[]");
-    setLikedPhotoIds(stored);
+    const loadLikes = () => {
+      const stored = JSON.parse(localStorage.getItem("likedPhotos") || "[]");
+      setLikedPhotoIds(stored);
+    };
+
+    loadLikes();
+
+    function handleStorageChange(event) {
+      if (event.key === "likedPhotos") {
+        loadLikes();
+      }
+    }
+
+    function handleCustomEvent() {
+      loadLikes();
+    }
+
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("likedPhotosChanged", handleCustomEvent);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("likedPhotosChanged", handleCustomEvent);
+    };
   }, []);
 
-  // Haal de foto-objecten op van de Unsplash API
   useEffect(() => {
     const fetchLikedPhotos = async () => {
       if (likedPhotoIds.length === 0) {
@@ -39,11 +58,11 @@ export default function VindIkLeukPage() {
     fetchLikedPhotos();
   }, [likedPhotoIds]);
 
-  // Verwijder foto uit lijst
   const removeLike = (id) => {
     const updated = likedPhotoIds.filter((pid) => pid !== id);
     setLikedPhotoIds(updated);
     localStorage.setItem("likedPhotos", JSON.stringify(updated));
+    window.dispatchEvent(new Event("likedPhotosChanged")); // dispatch event na verwijderen
   };
 
   return (
@@ -58,12 +77,13 @@ export default function VindIkLeukPage() {
             <div key={photo.id} className="relative break-inside-avoid">
               <img
                 src={photo.urls.small}
-                alt={photo.alt_description}
+                alt={photo.alt_description || "Foto"}
                 className="w-full h-auto rounded object-cover"
               />
               <button
                 onClick={() => removeLike(photo.id)}
                 className="absolute top-2 right-2 bg-white p-2 rounded-full shadow"
+                aria-label="Verwijder uit favorieten"
               >
                 ❌
               </button>
